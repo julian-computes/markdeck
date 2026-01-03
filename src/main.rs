@@ -13,9 +13,9 @@ use ratatui::{
         self,
         event::{Event, KeyCode, KeyModifiers},
     },
-    layout::{Constraint, Layout, Rect, Margin, Alignment},
+    layout::{Alignment, Constraint, Layout, Margin, Rect},
     prelude::CrosstermBackend,
-    style::{Style, Color},
+    style::{Color, Style},
     text::Text,
     widgets::{Paragraph, Wrap},
 };
@@ -73,9 +73,9 @@ pub fn render(app: &mut App, frame: &mut ratatui::Frame) {
         frame.render_stateful_widget(scroll_view, padded_area, &mut app.scroll_view_state);
     }
 
-    let controls_text = "h/l: slides  j/k: scroll  ^d/^u: half page  ^f/^b: full page  g/G: top/bottom  q: quit";
-    let footer = Paragraph::new(controls_text)
-        .style(Style::default().fg(Color::DarkGray));
+    let controls_text =
+        "h/l: slides  j/k: scroll  ^d/^u: half page  ^f/^b: full page  g/G: top/bottom  q: quit";
+    let footer = Paragraph::new(controls_text).style(Style::default().fg(Color::DarkGray));
     frame.render_widget(footer, footer_area);
 }
 
@@ -95,7 +95,9 @@ pub fn handle_key(app: &mut App, key_code: KeyCode, modifiers: KeyModifiers) {
         (KeyCode::Char('u'), KeyModifiers::CONTROL) => Some(Command::HalfPageUp),
         // Jump to top/bottom
         (KeyCode::Char('g'), KeyModifiers::NONE) => Some(Command::JumpToTop),
-        (KeyCode::Char('G'), KeyModifiers::NONE | KeyModifiers::SHIFT) => Some(Command::JumpToBottom),
+        (KeyCode::Char('G'), KeyModifiers::NONE | KeyModifiers::SHIFT) => {
+            Some(Command::JumpToBottom)
+        }
         _ => None,
     };
 
@@ -125,4 +127,92 @@ pub fn run_app(term: &mut Terminal<CrosstermBackend<Stdout>>, file_path: &str) -
 fn main() -> Result<()> {
     let cli = Cli::parse();
     ratatui::run(|term| run_app(term, &cli.file))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_j_maps_to_scroll_down() {
+        let mut app = App::new(vec![vec![]]);
+        handle_key(&mut app, KeyCode::Char('j'), KeyModifiers::NONE);
+    }
+
+    #[test]
+    fn test_k_maps_to_scroll_up() {
+        let mut app = App::new(vec![vec![]]);
+        handle_key(&mut app, KeyCode::Char('k'), KeyModifiers::NONE);
+    }
+
+    #[test]
+    fn test_down_arrow_maps_to_scroll_down() {
+        let mut app = App::new(vec![vec![]]);
+        handle_key(&mut app, KeyCode::Down, KeyModifiers::NONE);
+    }
+
+    #[test]
+    fn test_up_arrow_maps_to_scroll_up() {
+        let mut app = App::new(vec![vec![]]);
+        handle_key(&mut app, KeyCode::Up, KeyModifiers::NONE);
+    }
+
+    #[test]
+    fn test_h_maps_to_previous_slide() {
+        let mut app = App::new(vec![vec![], vec![]]);
+        app.current_slide = 1;
+        handle_key(&mut app, KeyCode::Char('h'), KeyModifiers::NONE);
+        assert_eq!(app.current_slide, 0);
+    }
+
+    #[test]
+    fn test_l_maps_to_next_slide() {
+        let mut app = App::new(vec![vec![], vec![]]);
+        handle_key(&mut app, KeyCode::Char('l'), KeyModifiers::NONE);
+        assert_eq!(app.current_slide, 1);
+    }
+
+    #[test]
+    fn test_ctrl_f_maps_to_page_down() {
+        let mut app = App::new(vec![vec![]]);
+        handle_key(&mut app, KeyCode::Char('f'), KeyModifiers::CONTROL);
+    }
+
+    #[test]
+    fn test_ctrl_b_maps_to_page_up() {
+        let mut app = App::new(vec![vec![]]);
+        handle_key(&mut app, KeyCode::Char('b'), KeyModifiers::CONTROL);
+    }
+
+    #[test]
+    fn test_ctrl_d_maps_to_half_page_down() {
+        let mut app = App::new(vec![vec![]]);
+        handle_key(&mut app, KeyCode::Char('d'), KeyModifiers::CONTROL);
+    }
+
+    #[test]
+    fn test_ctrl_u_maps_to_half_page_up() {
+        let mut app = App::new(vec![vec![]]);
+        handle_key(&mut app, KeyCode::Char('u'), KeyModifiers::CONTROL);
+    }
+
+    #[test]
+    fn test_g_maps_to_jump_to_top() {
+        let mut app = App::new(vec![vec![]]);
+        handle_key(&mut app, KeyCode::Char('g'), KeyModifiers::NONE);
+    }
+
+    #[test]
+    fn test_shift_g_maps_to_jump_to_bottom() {
+        let mut app = App::new(vec![vec![]]);
+        handle_key(&mut app, KeyCode::Char('G'), KeyModifiers::SHIFT);
+    }
+
+    #[test]
+    fn test_unrecognized_key_does_nothing() {
+        let mut app = App::new(vec![vec![], vec![]]);
+        let initial_slide = app.current_slide;
+        handle_key(&mut app, KeyCode::Char('x'), KeyModifiers::NONE);
+        assert_eq!(app.current_slide, initial_slide);
+    }
 }

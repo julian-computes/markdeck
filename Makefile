@@ -1,5 +1,8 @@
 .PHONY: install
 
+test:
+	cargo test
+
 install:
 	cargo build --release
 	mkdir -p $(HOME)/bin

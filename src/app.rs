@@ -186,3 +186,73 @@ fn collect_inline_spans(node: &Node, spans: &mut Vec<Span<'static>>, base_style:
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    fn create_temp_md_file(content: &str) -> NamedTempFile {
+        let mut file = NamedTempFile::new().unwrap();
+        file.write_all(content.as_bytes()).unwrap();
+        file.flush().unwrap();
+        file
+    }
+
+    #[test]
+    fn test_h1_creates_new_slide() {
+        let content = "# Slide 1\nContent 1\n\n# Slide 2\nContent 2";
+        let file = create_temp_md_file(content);
+        let slides = load_slides(file.path().to_str().unwrap()).unwrap();
+        assert_eq!(slides.len(), 2);
+    }
+
+    #[test]
+    fn test_h2_creates_new_slide() {
+        let content = "## Slide 1\nContent 1\n\n## Slide 2\nContent 2";
+        let file = create_temp_md_file(content);
+        let slides = load_slides(file.path().to_str().unwrap()).unwrap();
+        assert_eq!(slides.len(), 2);
+    }
+
+    #[test]
+    fn test_h3_does_not_split_slide() {
+        let content = "# Slide 1\n### Subsection\nMore content";
+        let file = create_temp_md_file(content);
+        let slides = load_slides(file.path().to_str().unwrap()).unwrap();
+        assert_eq!(slides.len(), 1);
+    }
+
+    #[test]
+    fn test_no_headings_creates_single_slide() {
+        let content = "Just some content\nWith multiple lines\nBut no headings";
+        let file = create_temp_md_file(content);
+        let slides = load_slides(file.path().to_str().unwrap()).unwrap();
+        assert_eq!(slides.len(), 1);
+    }
+
+    #[test]
+    fn test_mixed_h1_and_h2_split_slides() {
+        let content = "# Slide 1\nContent\n\n## Slide 2\nMore content\n\n# Slide 3\nFinal";
+        let file = create_temp_md_file(content);
+        let slides = load_slides(file.path().to_str().unwrap()).unwrap();
+        assert_eq!(slides.len(), 3);
+    }
+
+    #[test]
+    fn test_content_before_first_heading() {
+        let content = "Intro content\n\n# Slide 1\nContent";
+        let file = create_temp_md_file(content);
+        let slides = load_slides(file.path().to_str().unwrap()).unwrap();
+        assert_eq!(slides.len(), 2);
+    }
+
+    #[test]
+    fn test_empty_file() {
+        let content = "";
+        let file = create_temp_md_file(content);
+        let slides = load_slides(file.path().to_str().unwrap()).unwrap();
+        assert_eq!(slides.len(), 1);
+    }
+}

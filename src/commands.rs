@@ -64,3 +64,66 @@ impl Command {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_next_slide_within_bounds() {
+        let mut app = App::new(vec![vec![], vec![], vec![]]);
+        Command::NextSlide.execute(&mut app);
+        assert_eq!(app.current_slide, 1);
+    }
+
+    #[test]
+    fn test_next_slide_at_last_slide_does_nothing() {
+        let mut app = App::new(vec![vec![], vec![]]);
+        app.current_slide = 1;
+        Command::NextSlide.execute(&mut app);
+        assert_eq!(app.current_slide, 1);
+    }
+
+    #[test]
+    fn test_previous_slide_within_bounds() {
+        let mut app = App::new(vec![vec![], vec![], vec![]]);
+        app.current_slide = 2;
+        Command::PreviousSlide.execute(&mut app);
+        assert_eq!(app.current_slide, 1);
+    }
+
+    #[test]
+    fn test_previous_slide_at_first_slide_does_nothing() {
+        let mut app = App::new(vec![vec![], vec![]]);
+        app.current_slide = 0;
+        Command::PreviousSlide.execute(&mut app);
+        assert_eq!(app.current_slide, 0);
+    }
+
+    #[test]
+    fn test_next_slide_resets_scroll_state() {
+        let mut app = App::new(vec![vec![], vec![]]);
+        let mut offset = app.scroll_view_state.offset();
+        offset.y = 10;
+        app.scroll_view_state.set_offset(offset);
+
+        Command::NextSlide.execute(&mut app);
+
+        let new_offset = app.scroll_view_state.offset();
+        assert_eq!(new_offset.y, 0);
+    }
+
+    #[test]
+    fn test_previous_slide_resets_scroll_state() {
+        let mut app = App::new(vec![vec![], vec![]]);
+        app.current_slide = 1;
+        let mut offset = app.scroll_view_state.offset();
+        offset.y = 10;
+        app.scroll_view_state.set_offset(offset);
+
+        Command::PreviousSlide.execute(&mut app);
+
+        let new_offset = app.scroll_view_state.offset();
+        assert_eq!(new_offset.y, 0);
+    }
+}

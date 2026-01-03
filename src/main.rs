@@ -1,12 +1,14 @@
+use anyhow::{Result, anyhow};
 use markdown::{ParseOptions, mdast::Node, to_mdast};
 
-fn main() {
-    let readme = std::fs::read_to_string("README.md").unwrap();
-    let mut mdast = to_mdast(readme.as_str(), &ParseOptions::default()).unwrap();
+fn main() -> Result<()> {
+    let readme = std::fs::read_to_string("README.md")?;
+    let mut mdast =
+        to_mdast(readme.as_str(), &ParseOptions::default()).map_err(|e| anyhow!("{}", e))?;
 
     let mut current_slide_content = vec![];
     let mut slides = vec![];
-    let children = mdast.children_mut().unwrap();
+    let children = mdast.children_mut().ok_or(anyhow!("None"))?;
 
     for node in children {
         if !current_slide_content.is_empty()
@@ -22,4 +24,6 @@ fn main() {
     // Push the last slide
     slides.push(current_slide_content);
     dbg!(slides);
+
+    Ok(())
 }

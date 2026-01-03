@@ -10,3 +10,4 @@ markdown = "1.0.0"
 ratatui = { version = "0.30.0", default-features = false, features = [
   "crossterm",
 ] }
+tui-scrollview = "0.6.2"

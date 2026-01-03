@@ -9,7 +9,6 @@ View markdown content as a slide deck in your terminal.
 ## Installation
 
 Run `make install` to build the binary and install it to `$HOME/bin`.
-
 This will also copy `examples/config.toml` to `$HOME/.config/markdeck/config.toml`.
 
 ## Usage
@@ -32,4 +31,4 @@ Options:
 
 ## Demo
 
-[demo](./demo.gif)
+![demo](./demo.gif)

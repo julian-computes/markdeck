@@ -148,7 +148,8 @@ pub fn node_to_lines(node: &Node, lines: &mut Vec<Line<'static>>, style: Style) 
 fn collect_inline_spans(node: &Node, spans: &mut Vec<Span<'static>>, base_style: Style) {
     match node {
         Node::Text(text) => {
-            spans.push(Span::styled(text.value.clone(), base_style));
+            let sanitized = text.value.replace('\n', " ");
+            spans.push(Span::styled(sanitized, base_style));
         }
         Node::Strong(strong) => {
             let bold_style = base_style.add_modifier(Modifier::BOLD);
@@ -165,6 +166,23 @@ fn collect_inline_spans(node: &Node, spans: &mut Vec<Span<'static>>, base_style:
         Node::InlineCode(code) => {
             let code_style = base_style.fg(Color::Green).add_modifier(Modifier::BOLD);
             spans.push(Span::styled(code.value.clone(), code_style));
+        }
+        Node::Image(image) => {
+            let link_style = base_style
+                .fg(Color::Blue)
+                .add_modifier(Modifier::UNDERLINED);
+            let alt_text = if image.alt.is_empty() {
+                image.url.clone()
+            } else {
+                image.alt.clone()
+            };
+
+            spans.push(Span::styled(alt_text, link_style));
+
+            if !image.url.is_empty() {
+                let url_text = format!(" ({})", image.url);
+                spans.push(Span::styled(url_text, base_style));
+            }
         }
         Node::Link(link) => {
             let link_style = base_style
@@ -190,6 +208,7 @@ fn collect_inline_spans(node: &Node, spans: &mut Vec<Span<'static>>, base_style:
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ratatui::style::Style;
     use std::io::Write;
     use tempfile::NamedTempFile;
 
@@ -254,5 +273,47 @@ mod tests {
         let file = create_temp_md_file(content);
         let slides = load_slides(file.path().to_str().unwrap()).unwrap();
         assert_eq!(slides.len(), 1);
+    }
+
+    #[test]
+    fn test_image_is_rendered_as_link_text() {
+        let content = "![demo](demo.gif)";
+        let file = create_temp_md_file(content);
+        let slides = load_slides(file.path().to_str().unwrap()).unwrap();
+        let mut lines = vec![];
+
+        for node in &slides[0] {
+            node_to_lines(node, &mut lines, Style::default());
+        }
+
+        let rendered = lines[0]
+            .spans
+            .iter()
+            .map(|span| span.content.to_string())
+            .collect::<String>();
+
+        assert!(rendered.contains("demo"));
+        assert!(rendered.contains("(demo.gif)"));
+    }
+
+    #[test]
+    fn test_paragraph_newlines_render_as_spaces() {
+        let content = "# Slide\nLine one\nLine two";
+        let file = create_temp_md_file(content);
+        let slides = load_slides(file.path().to_str().unwrap()).unwrap();
+        let mut lines = vec![];
+
+        for node in &slides[0] {
+            node_to_lines(node, &mut lines, Style::default());
+        }
+
+        let rendered = lines[2]
+            .spans
+            .iter()
+            .map(|span| span.content.to_string())
+            .collect::<String>();
+
+        assert_eq!(rendered, "Line one Line two");
+        assert!(!rendered.contains('\n'));
     }
 }

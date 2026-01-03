@@ -12,9 +12,9 @@ use ratatui::{
         self,
         event::{Event, KeyCode, KeyModifiers},
     },
-    layout::{Constraint, Layout, Rect},
+    layout::{Constraint, Layout, Rect, Margin, Alignment},
     prelude::CrosstermBackend,
-    style::Style,
+    style::{Style, Color},
     text::Text,
     widgets::{Paragraph, Wrap},
 };
@@ -23,10 +23,25 @@ use tui_scrollview::{ScrollView, ScrollbarVisibility};
 pub fn render(app: &mut App, frame: &mut ratatui::Frame) {
     let area = frame.area();
 
-    let vertical = Layout::vertical([Constraint::Percentage(100)]);
-    let [content_area] = vertical.areas(area);
+    let vertical = Layout::vertical([
+        Constraint::Length(1),
+        Constraint::Min(1),
+        Constraint::Length(1),
+    ]);
+    let [header_area, content_area, footer_area] = vertical.areas(area);
 
-    app.viewport_height = content_area.height;
+    let slide_indicator = format!("{}/{}", app.current_slide + 1, app.slides.len());
+    let header = Paragraph::new(slide_indicator)
+        .style(Style::default().fg(Color::DarkGray))
+        .alignment(Alignment::Right);
+    frame.render_widget(header, header_area);
+
+    let padded_area = content_area.inner(Margin {
+        horizontal: 2,
+        vertical: 1,
+    });
+
+    app.viewport_height = padded_area.height;
 
     if let Some(slide) = app.slides.get(app.current_slide) {
         let mut all_lines = vec![];
@@ -37,7 +52,7 @@ pub fn render(app: &mut App, frame: &mut ratatui::Frame) {
         }
 
         let num_lines = all_lines.len() as u16;
-        let content_width = content_area.width;
+        let content_width = padded_area.width;
 
         let mut scroll_view = ScrollView::new((content_width, num_lines).into())
             .horizontal_scrollbar_visibility(ScrollbarVisibility::Never);
@@ -46,15 +61,20 @@ pub fn render(app: &mut App, frame: &mut ratatui::Frame) {
         let paragraph = Paragraph::new(text).wrap(Wrap { trim: false });
 
         scroll_view.render_widget(paragraph, Rect::new(0, 0, content_width, num_lines));
-        frame.render_stateful_widget(scroll_view, content_area, &mut app.scroll_view_state);
+        frame.render_stateful_widget(scroll_view, padded_area, &mut app.scroll_view_state);
     }
+
+    let controls_text = "h/l: slides  j/k: scroll  ^d/^u: half page  ^f/^b: full page  g/G: top/bottom  q: quit";
+    let footer = Paragraph::new(controls_text)
+        .style(Style::default().fg(Color::DarkGray));
+    frame.render_widget(footer, footer_area);
 }
 
 pub fn handle_key(app: &mut App, key_code: KeyCode, modifiers: KeyModifiers) {
     let command = match (key_code, modifiers) {
         // Single line scrolling
-        (KeyCode::Char('j'), KeyModifiers::NONE) => Some(Command::ScrollDown),
-        (KeyCode::Char('k'), KeyModifiers::NONE) => Some(Command::ScrollUp),
+        (KeyCode::Char('j'), KeyModifiers::NONE) | (KeyCode::Down, _) => Some(Command::ScrollDown),
+        (KeyCode::Char('k'), KeyModifiers::NONE) | (KeyCode::Up, _) => Some(Command::ScrollUp),
         // Slide navigation
         (KeyCode::Char('h'), KeyModifiers::NONE) => Some(Command::PreviousSlide),
         (KeyCode::Char('l'), KeyModifiers::NONE) => Some(Command::NextSlide),

@@ -5,6 +5,7 @@ use std::io::Stdout;
 
 use anyhow::Result;
 use app::{App, load_slides, node_to_lines};
+use clap::Parser;
 use commands::Command;
 use ratatui::{
     Terminal,
@@ -19,6 +20,14 @@ use ratatui::{
     widgets::{Paragraph, Wrap},
 };
 use tui_scrollview::{ScrollView, ScrollbarVisibility};
+
+#[derive(Parser)]
+#[command(name = "markdeck")]
+#[command(about = "A terminal-based markdown presentation viewer", long_about = None)]
+struct Cli {
+    #[arg(help = "Path to the markdown file to present")]
+    file: String,
+}
 
 pub fn render(app: &mut App, frame: &mut ratatui::Frame) {
     let area = frame.area();
@@ -95,8 +104,8 @@ pub fn handle_key(app: &mut App, key_code: KeyCode, modifiers: KeyModifiers) {
     }
 }
 
-pub fn run_app(term: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<()> {
-    let slides = load_slides("README.md")?;
+pub fn run_app(term: &mut Terminal<CrosstermBackend<Stdout>>, file_path: &str) -> Result<()> {
+    let slides = load_slides(file_path)?;
     let mut app = App::new(slides);
 
     loop {
@@ -114,5 +123,6 @@ pub fn run_app(term: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    ratatui::run(run_app)
+    let cli = Cli::parse();
+    ratatui::run(|term| run_app(term, &cli.file))
 }

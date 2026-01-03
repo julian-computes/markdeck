@@ -16,3 +16,5 @@ Type "l"
 Sleep 1.5s
 Type "l"
 Sleep 1.5s
+Type "l"
+Sleep 1.5s

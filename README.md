@@ -29,3 +29,7 @@ Options:
   -c, --config <CONFIG>  Path to config file (defaults to ~/.config/markdeck/config.toml)
   -h, --help             Print help
 ```
+
+## Demo
+
+[demo](./demo.gif)

@@ -52,6 +52,8 @@ impl Config {
             let content = fs::read_to_string(&config_path)?;
             let config: Config = toml::from_str(&content)?;
             Ok(config)
+        } else if let Some(p) = path {
+            anyhow::bail!("Failed to find config at: {}", p)
         } else {
             Ok(Config::default())
         }

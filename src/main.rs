@@ -8,7 +8,7 @@ fn main() -> Result<()> {
 
     let mut current_slide_content = vec![];
     let mut slides = vec![];
-    let children = mdast.children_mut().ok_or(anyhow!("None"))?;
+    let children = mdast.children_mut().ok_or(anyhow!("No children"))?;
 
     for node in children {
         if !current_slide_content.is_empty()

@@ -88,7 +88,7 @@ pub fn node_to_lines(node: &Node, lines: &mut Vec<Line<'static>>, style: Style) 
                     let bullet = if list.ordered {
                         format!("{}. ", i + 1)
                     } else {
-                        "• ".to_string()
+                        "- ".to_string()
                     };
 
                     let mut item_spans = vec![Span::raw(bullet)];
@@ -101,7 +101,7 @@ pub fn node_to_lines(node: &Node, lines: &mut Vec<Line<'static>>, style: Style) 
             lines.push(Line::raw(""));
         }
         Node::Code(code) => {
-            let code_style = Style::default().fg(Color::Green).bg(Color::DarkGray);
+            let code_style = Style::default().fg(Color::Gray);
 
             if let Some(lang) = &code.lang {
                 lines.push(Line::styled(format!("```{}", lang), code_style));

@@ -1,0 +1,33 @@
+# Markdeck Configuration
+
+# Key mappings for navigation and control
+[keymaps]
+# Scroll down one line
+scroll_down = ["j", "Down"]
+
+# Scroll up one line
+scroll_up = ["k", "Up"]
+
+# Navigate to the previous slide
+previous_slide = ["h"]
+
+# Navigate to the next slide
+next_slide = ["l"]
+
+# Scroll down by one page
+page_down = ["C-f"]
+
+# Scroll up by one page
+page_up = ["C-b"]
+
+# Scroll down by half a page
+half_page_down = ["C-d"]
+
+# Scroll up by half a page
+half_page_up = ["C-u"]
+
+# Jump to the top of the slide
+jump_to_top = ["g"]
+
+# Jump to the bottom of the slide
+jump_to_bottom = ["G"]

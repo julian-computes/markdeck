@@ -1,12 +1,12 @@
 mod app;
 mod commands;
+mod config;
 
 use std::io::Stdout;
 
 use anyhow::Result;
 use app::{App, load_slides, node_to_lines};
 use clap::Parser;
-use commands::Command;
 use ratatui::{
     Terminal,
     crossterm::{
@@ -27,9 +27,12 @@ use tui_scrollview::{ScrollView, ScrollbarVisibility};
 struct Cli {
     #[arg(help = "Path to the markdown file to present")]
     file: String,
+
+    #[arg(short, long, help = "Path to config file (defaults to ~/.config/markdeck/config.toml)")]
+    config: Option<String>,
 }
 
-pub fn render(app: &mut App, frame: &mut ratatui::Frame) {
+pub fn render(app: &mut App, frame: &mut ratatui::Frame, config: &config::Config) {
     let area = frame.area();
 
     let vertical = Layout::vertical([
@@ -73,45 +76,23 @@ pub fn render(app: &mut App, frame: &mut ratatui::Frame) {
         frame.render_stateful_widget(scroll_view, padded_area, &mut app.scroll_view_state);
     }
 
-    let controls_text =
-        "h/l: slides  j/k: scroll  ^d/^u: half page  ^f/^b: full page  g/G: top/bottom  q: quit";
+    let controls_text = config.format_help_text();
     let footer = Paragraph::new(controls_text).style(Style::default().fg(Color::DarkGray));
     frame.render_widget(footer, footer_area);
 }
 
-pub fn handle_key(app: &mut App, key_code: KeyCode, modifiers: KeyModifiers) {
-    let command = match (key_code, modifiers) {
-        // Single line scrolling
-        (KeyCode::Char('j'), KeyModifiers::NONE) | (KeyCode::Down, _) => Some(Command::ScrollDown),
-        (KeyCode::Char('k'), KeyModifiers::NONE) | (KeyCode::Up, _) => Some(Command::ScrollUp),
-        // Slide navigation
-        (KeyCode::Char('h'), KeyModifiers::NONE) => Some(Command::PreviousSlide),
-        (KeyCode::Char('l'), KeyModifiers::NONE) => Some(Command::NextSlide),
-        // Page scrolling
-        (KeyCode::Char('f'), KeyModifiers::CONTROL) => Some(Command::PageDown),
-        (KeyCode::Char('b'), KeyModifiers::CONTROL) => Some(Command::PageUp),
-        // Half-page scrolling
-        (KeyCode::Char('d'), KeyModifiers::CONTROL) => Some(Command::HalfPageDown),
-        (KeyCode::Char('u'), KeyModifiers::CONTROL) => Some(Command::HalfPageUp),
-        // Jump to top/bottom
-        (KeyCode::Char('g'), KeyModifiers::NONE) => Some(Command::JumpToTop),
-        (KeyCode::Char('G'), KeyModifiers::NONE | KeyModifiers::SHIFT) => {
-            Some(Command::JumpToBottom)
-        }
-        _ => None,
-    };
-
-    if let Some(cmd) = command {
+pub fn handle_key(app: &mut App, key_code: KeyCode, modifiers: KeyModifiers, config: &config::Config) {
+    if let Some(cmd) = config.get_command(key_code, modifiers) {
         cmd.execute(app);
     }
 }
 
-pub fn run_app(term: &mut Terminal<CrosstermBackend<Stdout>>, file_path: &str) -> Result<()> {
+pub fn run_app(term: &mut Terminal<CrosstermBackend<Stdout>>, file_path: &str, config: config::Config) -> Result<()> {
     let slides = load_slides(file_path)?;
     let mut app = App::new(slides);
 
     loop {
-        term.draw(|f| render(&mut app, f))?;
+        term.draw(|f| render(&mut app, f, &config))?;
         let event = crossterm::event::read()?;
         if let Event::Key(key) = event
             && key.is_press()
@@ -119,14 +100,15 @@ pub fn run_app(term: &mut Terminal<CrosstermBackend<Stdout>>, file_path: &str) -
             if let KeyCode::Char('q') = key.code {
                 return Ok(());
             }
-            handle_key(&mut app, key.code, key.modifiers);
+            handle_key(&mut app, key.code, key.modifiers, &config);
         }
     }
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    ratatui::run(|term| run_app(term, &cli.file))
+    let config = config::Config::load(cli.config.as_deref())?;
+    ratatui::run(|term| run_app(term, &cli.file, config))
 }
 
 #[cfg(test)]
@@ -135,84 +117,97 @@ mod tests {
 
     #[test]
     fn test_j_maps_to_scroll_down() {
+        let config = config::Config::default();
         let mut app = App::new(vec![vec![]]);
-        handle_key(&mut app, KeyCode::Char('j'), KeyModifiers::NONE);
+        handle_key(&mut app, KeyCode::Char('j'), KeyModifiers::NONE, &config);
     }
 
     #[test]
     fn test_k_maps_to_scroll_up() {
+        let config = config::Config::default();
         let mut app = App::new(vec![vec![]]);
-        handle_key(&mut app, KeyCode::Char('k'), KeyModifiers::NONE);
+        handle_key(&mut app, KeyCode::Char('k'), KeyModifiers::NONE, &config);
     }
 
     #[test]
     fn test_down_arrow_maps_to_scroll_down() {
+        let config = config::Config::default();
         let mut app = App::new(vec![vec![]]);
-        handle_key(&mut app, KeyCode::Down, KeyModifiers::NONE);
+        handle_key(&mut app, KeyCode::Down, KeyModifiers::NONE, &config);
     }
 
     #[test]
     fn test_up_arrow_maps_to_scroll_up() {
+        let config = config::Config::default();
         let mut app = App::new(vec![vec![]]);
-        handle_key(&mut app, KeyCode::Up, KeyModifiers::NONE);
+        handle_key(&mut app, KeyCode::Up, KeyModifiers::NONE, &config);
     }
 
     #[test]
     fn test_h_maps_to_previous_slide() {
+        let config = config::Config::default();
         let mut app = App::new(vec![vec![], vec![]]);
         app.current_slide = 1;
-        handle_key(&mut app, KeyCode::Char('h'), KeyModifiers::NONE);
+        handle_key(&mut app, KeyCode::Char('h'), KeyModifiers::NONE, &config);
         assert_eq!(app.current_slide, 0);
     }
 
     #[test]
     fn test_l_maps_to_next_slide() {
+        let config = config::Config::default();
         let mut app = App::new(vec![vec![], vec![]]);
-        handle_key(&mut app, KeyCode::Char('l'), KeyModifiers::NONE);
+        handle_key(&mut app, KeyCode::Char('l'), KeyModifiers::NONE, &config);
         assert_eq!(app.current_slide, 1);
     }
 
     #[test]
     fn test_ctrl_f_maps_to_page_down() {
+        let config = config::Config::default();
         let mut app = App::new(vec![vec![]]);
-        handle_key(&mut app, KeyCode::Char('f'), KeyModifiers::CONTROL);
+        handle_key(&mut app, KeyCode::Char('f'), KeyModifiers::CONTROL, &config);
     }
 
     #[test]
     fn test_ctrl_b_maps_to_page_up() {
+        let config = config::Config::default();
         let mut app = App::new(vec![vec![]]);
-        handle_key(&mut app, KeyCode::Char('b'), KeyModifiers::CONTROL);
+        handle_key(&mut app, KeyCode::Char('b'), KeyModifiers::CONTROL, &config);
     }
 
     #[test]
     fn test_ctrl_d_maps_to_half_page_down() {
+        let config = config::Config::default();
         let mut app = App::new(vec![vec![]]);
-        handle_key(&mut app, KeyCode::Char('d'), KeyModifiers::CONTROL);
+        handle_key(&mut app, KeyCode::Char('d'), KeyModifiers::CONTROL, &config);
     }
 
     #[test]
     fn test_ctrl_u_maps_to_half_page_up() {
+        let config = config::Config::default();
         let mut app = App::new(vec![vec![]]);
-        handle_key(&mut app, KeyCode::Char('u'), KeyModifiers::CONTROL);
+        handle_key(&mut app, KeyCode::Char('u'), KeyModifiers::CONTROL, &config);
     }
 
     #[test]
     fn test_g_maps_to_jump_to_top() {
+        let config = config::Config::default();
         let mut app = App::new(vec![vec![]]);
-        handle_key(&mut app, KeyCode::Char('g'), KeyModifiers::NONE);
+        handle_key(&mut app, KeyCode::Char('g'), KeyModifiers::NONE, &config);
     }
 
     #[test]
     fn test_shift_g_maps_to_jump_to_bottom() {
+        let config = config::Config::default();
         let mut app = App::new(vec![vec![]]);
-        handle_key(&mut app, KeyCode::Char('G'), KeyModifiers::SHIFT);
+        handle_key(&mut app, KeyCode::Char('G'), KeyModifiers::SHIFT, &config);
     }
 
     #[test]
     fn test_unrecognized_key_does_nothing() {
+        let config = config::Config::default();
         let mut app = App::new(vec![vec![], vec![]]);
         let initial_slide = app.current_slide;
-        handle_key(&mut app, KeyCode::Char('x'), KeyModifiers::NONE);
+        handle_key(&mut app, KeyCode::Char('x'), KeyModifiers::NONE, &config);
         assert_eq!(app.current_slide, initial_slide);
     }
 }

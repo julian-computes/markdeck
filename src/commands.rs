@@ -1,6 +1,7 @@
 use crate::app::App;
 use tui_scrollview::ScrollViewState;
 
+#[derive(Debug, Clone, Copy)]
 pub enum Command {
     ScrollDown,
     ScrollUp,
